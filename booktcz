@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Prenotazioni B&B</title>
+    <!-- Carica Tailwind CSS per uno stile moderno e reattivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .day-cell {
+            padding-top: 100%; /* Rende le celle quadrate */
+            position: relative;
+            background-color: #f9fafb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s ease, background-color 0.1s ease;
+        }
+        .day-cell:hover {
+            transform: scale(1.05);
+            background-color: #e5e7eb;
+        }
+        .day-number {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.875rem;
+            color: #4b5563;
+        }
+        .selected-day {
+            background-color: #bfdbfe;
+            border: 2px solid #3b82f6;
+        }
+        .booking-details {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            right: 4px;
+            font-size: 0.7rem;
+            line-height: 1;
+            text-align: center;
+        }
+        .booking-details p {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sold-out {
+            background-color: #fca5a5;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 min-h-screen flex items-center justify-center">
+
+    <!-- Sezione principale dell'app -->
+    <div class="bg-white rounded-xl shadow-lg p-6 max-w-5xl w-full">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Gestione Prenotazioni B&B</h1>
+        <p class="text-sm text-center text-gray-500 mb-6">
+            Il tuo ID utente è: <span id="user-id" class="font-mono bg-gray-200 px-2 py-1 rounded-md text-xs">Caricamento...</span>
+        </p>
+
+        <!-- Pulsanti di navigazione -->
+        <div class="flex justify-center space-x-4 mb-6">
+            <button id="show-manager-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Gestione Prenotazioni</button>
+            <button id="show-calendar-btn" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">Calendario</button>
+            <button id="show-summary-btn" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">Riepilogo</button>
+        </div>
+
+        <!-- Vista: Gestore Prenotazioni -->
+        <div id="booking-manager-view" class="block">
+            <!-- Form per aggiungere una nuova prenotazione -->
+            <form id="booking-form" class="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Aggiungi nuova prenotazione</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="flex flex-col">
+                        <label for="guest-name" class="text-sm font-medium text-gray-600 mb-1">Nome Ospite</label>
+                        <input type="text" id="guest-name" placeholder="Es. Mario Rossi" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="room-name" class="text-sm font-medium text-gray-600 mb-1">Stanza</label>
+                        <select id="room-name" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Seleziona una stanza</option>
+                            <option value="Malva">Malva</option>
+                            <option value="Margherita">Margherita</option>
+                            <option value="Papavero">Papavero</option>
+                            <option value="Ginestra">Ginestra</option>
+                            <option value="Camomilla">Camomilla</option>
+                            <option value="Gelsomino">Gelsomino</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="num-guests" class="text-sm font-medium text-gray-600 mb-1">Numero Ospiti</label>
+                        <input type="number" id="num-guests" min="1" value="1" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="daily-rate" class="text-sm font-medium text-gray-600 mb-1">Tariffa Giornaliera (€)</label>
+                        <input type="number" id="daily-rate" min="0" value="0" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="checkin-date" class="text-sm font-medium text-gray-600 mb-1">Data Check-in</label>
+                        <input type="date" id="checkin-date" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="checkout-date" class="text-sm font-medium text-gray-600 mb-1">Data Check-out</label>
+                        <input type="date" id="checkout-date" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="discount-rate" class="text-sm font-medium text-gray-600 mb-1">Sconto (%)</label>
+                        <input type="number" id="discount-rate" min="0" max="100" value="0" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="payment-status" class="text-sm font-medium text-gray-600 mb-1">Stato Pagamento</label>
+                        <select id="payment-status" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                            <option value="non_pagato">Non Pagato</option>
+                            <option value="pagato">Pagato</option>
+                            <option value="pagato_parzialmente">Pagato Parzialmente</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="intolerances" class="text-sm font-medium text-gray-600 mb-1">Intolleranze (per la colazione)</label>
+                        <textarea id="intolerances" rows="2" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Es. Senza glutine, lattosio"></textarea>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="invoice-requested" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <label for="invoice-requested" class="ml-2 text-sm font-medium text-gray-600">Richiesta Fattura</label>
+                    </div>
+                    <!-- Campi aggiuntivi nascosti -->
+                    <div class="flex flex-col hidden" id="arrival-time-container">
+                        <label for="arrival-time" class="text-sm font-medium text-gray-600 mb-1">Orario di arrivo</label>
+                        <input type="time" id="arrival-time" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex flex-col hidden" id="payment-method-container">
+                        <label for="payment-method" class="text-sm font-medium text-gray-600 mb-1">Metodo di Pagamento</label>
+                        <select id="payment-method" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                            <option value="contanti">Contanti</option>
+                            <option value="carta_di_credito">Carta di Credito</option>
+                            <option value="bonifico">Bonifico</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col hidden" id="partial-payment-container">
+                        <label for="partial-payment" class="text-sm font-medium text-gray-600 mb-1">Importo Parziale (€)</label>
+                        <input type="number" id="partial-payment" min="0" value="0" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                    Aggiungi Prenotazione
+                </button>
+            </form>
+
+            <!-- Lista delle prenotazioni -->
+            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Prenotazioni</h2>
+                <div id="bookings-list" class="space-y-4">
+                    <p class="text-gray-500 text-center">Caricamento delle prenotazioni...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vista: Calendario -->
+        <div id="booking-calendar-view" class="hidden">
+            <!-- Sezione principale del calendario -->
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full mt-8">
+                <div class="flex items-center justify-between mb-4">
+                    <button id="prev-month" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors">Precedente</button>
+                    <h2 id="current-month-year" class="text-xl font-semibold text-gray-700"></h2>
+                    <button id="next-month" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors">Successivo</button>
+                </div>
+
+                <!-- Giorni della settimana -->
+                <div class="calendar-grid text-center font-bold text-sm text-gray-500 mb-2">
+                    <div>Dom</div>
+                    <div>Lun</div>
+                    <div>Mar</div>
+                    <div>Mer</div>
+                    <div>Gio</div>
+                    <div>Ven</div>
+                    <div>Sab</div>
+                </div>
+
+                <!-- Griglia del calendario -->
+                <div id="calendar-grid" class="calendar-grid">
+                    <!-- Le celle dei giorni verranno generate qui via JavaScript -->
+                </div>
+
+                <!-- Dettagli delle prenotazioni per il giorno selezionato -->
+                <div class="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">Dettagli per la data selezionata</h3>
+                    <div id="selected-day-bookings" class="space-y-4 text-gray-600">
+                        <p class="text-center">Seleziona un giorno per vedere le prenotazioni.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Vista: Riepilogo Dati -->
+        <div id="data-summary-view" class="hidden">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Riepilogo Dati</h2>
+            <div class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4 mb-4">
+                <label for="summary-filter" class="text-sm font-medium text-gray-600">Seleziona Periodo:</label>
+                <select id="summary-filter" class="p-2 border border-gray-300 rounded-lg">
+                    <option value="year">Anno</option>
+                    <option value="month">Mese</option>
+                    <option value="week">Settimana</option>
+                    <option value="day">Giorno</option>
+                </select>
+                <div id="filter-inputs-container" class="flex items-center space-x-2">
+                    <!-- Gli input specifici per il filtro verranno inseriti qui da JS -->
+                </div>
+            </div>
+            <div id="summary-content" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- I dati verranno visualizzati qui -->
+            </div>
+            <div id="summary-extras-content" class="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">Riepilogo Consumazioni Extra</h3>
+                <div id="extra-summary-details">
+                    <!-- Il riepilogo degli extra verrà visualizzato qui -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale per messaggi di conferma/errore -->
+    <div id="modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md text-center">
+            <h3 id="modal-title" class="text-lg font-bold mb-2"></h3>
+            <p id="modal-message" class="text-gray-700 mb-4"></p>
+            <div class="flex justify-center space-x-4">
+                <button id="modal-confirm" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">OK</button>
+                <button id="modal-cancel" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">Annulla</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modale per l'aggiunta di extra -->
+    <div id="extra-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4">Aggiungi Consumazione Extra</h3>
+            <form id="extra-form">
+                <div class="flex flex-col mb-4">
+                    <label for="extra-description" class="text-sm font-medium text-gray-600 mb-1">Descrizione</label>
+                    <input type="text" id="extra-description" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Es. Bottiglia di vino">
+                </div>
+                <div class="flex flex-col mb-4">
+                    <label for="extra-cost" class="text-sm font-medium text-gray-600 mb-1">Costo (€)</label>
+                    <input type="number" id="extra-cost" min="0" value="0" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <!-- Nuovo campo per la data della consumazione -->
+                <div class="flex flex-col mb-4">
+                    <label for="extra-date" class="text-sm font-medium text-gray-600 mb-1">Data Consumazione</label>
+                    <input type="date" id="extra-date" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" id="cancel-extra-btn" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">Annulla</button>
+                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Aggiungi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modale per il riepilogo del conto -->
+    <div id="summary-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4">Riepilogo Conto</h3>
+            <div id="summary-content-modal" class="text-gray-700"></div>
+            <button id="copy-summary-btn" class="mt-4 w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">Copia Conto</button>
+            <button id="close-summary-btn" class="mt-2 w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">Chiudi</button>
+        </div>
+    </div>
+
+    <!-- Modale per il testo generato da Gemini -->
+    <div id="gemini-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-xl">
+            <h3 id="gemini-title" class="text-lg font-bold mb-4 text-center"></h3>
+            <div id="gemini-loading" class="text-center text-blue-600 font-semibold mb-4 hidden">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                Generazione in corso...
+            </div>
+            <div id="gemini-content" class="text-gray-700 whitespace-pre-wrap"></div>
+            <div class="flex justify-end space-x-4 mt-4">
+                <button id="gemini-copy-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">Copia Testo</button>
+                <button id="gemini-close-btn" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale di modifica della prenotazione -->
+    <div id="edit-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4">Modifica Prenotazione</h3>
+            <form id="edit-form">
+                <input type="hidden" id="edit-booking-id">
+                <div class="flex flex-col mb-4">
+                    <label for="edit-guest-name" class="text-sm font-medium text-gray-600 mb-1">Nome Ospite</label>
+                    <input type="text" id="edit-guest-name" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex flex-col mb-4">
+                    <label for="edit-room-name" class="text-sm font-medium text-gray-600 mb-1">Stanza</label>
+                    <select id="edit-room-name" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        <option value="Malva">Malva</option>
+                        <option value="Margherita">Margherita</option>
+                        <option value="Papavero">Papavero</option>
+                        <option value="Ginestra">Ginestra</option>
+                        <option value="Camomilla">Camomilla</option>
+                        <option value="Gelsomino">Gelsomino</option>
+                    </select>
+                </div>
+                <div class="flex flex-col mb-4">
+                    <label for="edit-num-guests" class="text-sm font-medium text-gray-600 mb-1">Numero Ospiti</label>
+                    <input type="number" id="edit-num-guests" min="1" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex flex-col mb-4">
+                    <label for="edit-daily-rate" class="text-sm font-medium text-gray-600 mb-1">Tariffa Giornaliera (€)</label>
+                    <input type="number" id="edit-daily-rate" min="0" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex flex-col mb-4">
+                    <label for="edit-checkin-date" class="text-sm font-medium text-gray-600 mb-1">Data Check-in</label>
+                    <input type="date" id="edit-checkin-date" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex flex-col mb-4">
+                    <label for="edit-checkout-date" class="text-sm font-medium text-gray-600 mb-1">Data Check-out</label>
+                    <input type="date" id="edit-checkout-date" required class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex flex-col mb-4">
+                    <label for="edit-discount-rate" class="text-sm font-medium text-gray-600 mb-1">Sconto (%)</label>
+                    <input type="number" id="edit-discount-rate" min="0" max="100" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex flex-col mb-4">
+                    <label for="edit-payment-status" class="text-sm font-medium text-gray-600 mb-1">Stato Pagamento</label>
+                    <select id="edit-payment-status" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        <option value="non_pagato">Non Pagato</option>
+                        <option value="pagato">Pagato</option>
+                        <option value="pagato_parzialmente">Pagato Parzialmente</option>
+                    </select>
+                </div>
+                <div class="flex flex-col mb-4">
+                    <label for="edit-intolerances" class="text-sm font-medium text-gray-600 mb-1">Intolleranze (per la colazione)</label>
+                    <textarea id="edit-intolerances" rows="2" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Es. Senza glutine, lattosio"></textarea>
+                </div>
+                <div class="flex items-center mb-4">
+                    <input type="checkbox" id="edit-invoice-requested" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <label for="edit-invoice-requested" class="ml-2 text-sm font-medium text-gray-600">Richiesta Fattura</label>
+                </div>
+                <!-- Campi aggiuntivi di modifica nascosti -->
+                <div class="flex flex-col hidden" id="edit-payment-method-container">
+                    <label for="edit-payment-method" class="text-sm font-medium text-gray-600 mb-1">Metodo di Pagamento</label>
+                    <select id="edit-payment-method" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        <option value="contanti">Contanti</option>
+                        <option value="carta_di_credito">Carta di Credito</option>
+                        <option value="bonifico">Bonifico</option>
+                    </select>
+                </div>
+                <div class="flex flex-col hidden" id="edit-partial-payment-container">
+                    <label for="edit-partial-payment" class="text-sm font-medium text-gray-600 mb-1">Importo Parziale (€)</label>
+                    <input type="number" id="edit-partial-payment" min="0" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" id="cancel-edit-btn" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">Annulla</button>
+                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Salva Modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Script per Firebase e la logica dell'app -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Attiva i log per il debug di Firestore
+        setLogLevel('debug');
+
+        // Variabili globali fornite dall'ambiente Canvas
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Inizializza Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        let userId = null;
+        const totalRooms = 6;
+        let isAuthReady = false;
+
+        // Riferimenti agli elementi DOM
+        const showManagerBtn = document.getElementById('show-manager-btn');
+        const showCalendarBtn = document.getElementById('show-calendar-btn');
+        const showSummaryBtn = document.getElementById('show-summary-btn');
+        const managerView = document.getElementById('booking-manager-view');
+        const calendarView = document.getElementById('booking-calendar-view');
+        const summaryView = document.getElementById('data-summary-view');
+
+        const bookingForm = document.getElementById('booking-form');
+        const bookingsList = document.getElementById('bookings-list');
+        const userIdSpan = document.getElementById('user-id');
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalConfirmBtn = document.getElementById('modal-confirm');
+        const modalCancelBtn = document.getElementById('modal-cancel');
+        const paymentStatusSelect = document.getElementById('payment-status');
+        const paymentMethodContainer = document.getElementById('payment-method-container');
+        const partialPaymentContainer = document.getElementById('partial-payment-container');
+        const partialPaymentInput = document.getElementById('partial-payment');
+        const extraModal = document.getElementById('extra-modal');
+        const extraForm = document.getElementById('extra-form');
+        const cancelExtraBtn = document.getElementById('cancel-extra-btn');
+        const summaryModal = document.getElementById('summary-modal');
+        const summaryContentModal = document.getElementById('summary-content-modal');
+        const copySummaryBtn = document.getElementById('copy-summary-btn');
+        const closeSummaryBtn = document.getElementById('close-summary-btn');
+        const geminiModal = document.getElementById('gemini-modal');
+        const geminiTitle = document.getElementById('gemini-title');
+        const geminiContent = document.getElementById('gemini-content');
+        const geminiLoading = document.getElementById('gemini-loading');
+        const geminiCopyBtn = document.getElementById('gemini-copy-btn');
+        const geminiCloseBtn = document.getElementById('gemini-close-btn');
+
+        const editModal = document.getElementById('edit-modal');
+        const editForm = document.getElementById('edit-form');
+        const editBookingId = document.getElementById('edit-booking-id');
+        const editGuestName = document.getElementById('edit-guest-name');
+        const editRoomName = document.getElementById('edit-room-name');
+        const editNumGuests = document.getElementById('edit-num-guests');
+        const editDailyRate = document.getElementById('edit-daily-rate');
+        const editCheckinDate = document.getElementById('edit-checkin-date');
+        const editCheckoutDate = document.getElementById('edit-checkout-date');
+        const editDiscountRate = document.getElementById('edit-discount-rate');
+        const editPaymentStatus = document.getElementById('edit-payment-status');
+        const editPaymentMethod = document.getElementById('edit-payment-method');
+        const editPartialPayment = document.getElementById('edit-partial-payment');
+        const editInvoiceRequested = document.getElementById('edit-invoice-requested');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        const editPaymentMethodContainer = document.getElementById('edit-payment-method-container');
+        const editPartialPaymentContainer = document.getElementById('edit-partial-payment-container');
+        
+        const currentMonthYearEl = document.getElementById('current-month-year');
+        const calendarGridEl = document.getElementById('calendar-grid');
+        const prevMonthBtn = document.getElementById('prev-month');
+        const nextMonthBtn = document.getElementById('next-month');
+        const selectedDayBookingsEl = document.getElementById('selected-day-bookings');
+        
+        const summaryFilterSelect = document.getElementById('summary-filter');
+        const filterInputsContainer = document.getElementById('filter-inputs-container');
+        const summaryDataContainer = document.getElementById('summary-content');
+        const summaryExtrasContainer = document.getElementById('extra-summary-details');
+
+        let allBookings = [];
+        let currentMonth = new Date();
+        const monthNames = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+
+        // Funzione per mostrare un modale personalizzato al posto di window.confirm/alert
+        const showModal = (title, message, isConfirm = false) => {
+            return new Promise(resolve => {
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                modalConfirmBtn.textContent = isConfirm ? 'Conferma' : 'OK';
+                modalCancelBtn.classList.toggle('hidden', !isConfirm);
+                modal.classList.remove('hidden');
+
+                const handleConfirm = () => {
+                    modal.classList.add('hidden');
+                    modalConfirmBtn.removeEventListener('click', handleConfirm);
+                    modalCancelBtn.removeEventListener('click', handleCancel);
+                    resolve(true);
+                };
+
+                const handleCancel = () => {
+                    modal.classList.add('hidden');
+                    modalConfirmBtn.removeEventListener('click', handleConfirm);
+                    modalCancelBtn.removeEventListener('click', handleCancel);
+                    resolve(false);
+                };
+
+                modalConfirmBtn.addEventListener('click', handleConfirm);
+                if (isConfirm) {
+                    modalCancelBtn.addEventListener('click', handleCancel);
+                }
+            });
+        };
+
+        // Funzione per mostrare il modale del riepilogo
+        const showSummaryModal = (booking) => {
+            const checkIn = new Date(booking.checkInDate);
+            const checkOut = new Date(booking.checkOutDate);
+            const diffTime = Math.abs(checkOut - checkIn);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            const originalCost = (booking.dailyRate || 0) * diffDays;
+            const discountAmount = originalCost * (booking.discountRate || 0) / 100;
+            const discountedCost = originalCost - discountAmount;
+            
+            const extraCost = (booking.extras || []).reduce((sum, extra) => sum + (extra.cost || 0), 0);
+            const finalCost = discountedCost + extraCost;
+
+            let summaryText = `Grazie da Tenuta Coppa Zuccari. Ci auguriamo che il Vostro soggiorno sia stato gradito.\n\n`;
+            summaryText += `Riepilogo Conto per Sig./Sig.ra ${booking.guestName}\n\n`;
+            summaryText += `Soggiorno: dal ${booking.checkInDate} al ${booking.checkOutDate} (${diffDays} notti)\n`;
+            summaryText += `Tariffa giornaliera: €${(booking.dailyRate || 0).toFixed(2)}\n`;
+            
+            if (booking.discountRate && booking.discountRate > 0) {
+                summaryText += `Sconto applicato: ${booking.discountRate}% (valore: €${discountAmount.toFixed(2)})\n`;
+            }
+
+            summaryText += `Costo soggiorno: €${discountedCost.toFixed(2)}\n\n`;
+
+            if (booking.extras && booking.extras.length > 0) {
+                summaryText += `Consumazioni Extra:\n`;
+                booking.extras.forEach(extra => {
+                    summaryText += `- ${extra.description} (${extra.date}): €${extra.cost.toFixed(2)}\n`;
+                });
+                summaryText += `Costo extra totale: €${extraCost.toFixed(2)}\n\n`;
+            }
+
+            summaryText += `TOTALE COMPLESSIVO: €${finalCost.toFixed(2)}\n`;
+            summaryText += `Stato pagamento: ${booking.paymentStatus === 'pagato' ? `Pagato (${booking.paymentMethod})` : booking.paymentStatus === 'non_pagato' ? 'Non Pagato' : `Pagato Parzialmente (€${(booking.partialPaymentAmount || 0).toFixed(2)})`}`;
+            
+            summaryContentModal.innerHTML = `<pre class="whitespace-pre-wrap">${summaryText}</pre>`;
+            summaryModal.classList.remove('hidden');
+        };
+
+        // Mostra o nasconde l'input per il pagamento parziale o il metodo di pagamento
+        paymentStatusSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'pagato_parzialmente') {
+                partialPaymentContainer.classList.remove('hidden');
+                paymentMethodContainer.classList.add('hidden');
+            } else if (e.target.value === 'pagato') {
+                partialPaymentContainer.classList.add('hidden');
+                paymentMethodContainer.classList.remove('hidden');
+            }
+            else {
+                partialPaymentContainer.classList.add('hidden');
+                paymentMethodContainer.classList.add('hidden');
+            }
+        });
+
+        // Funzioni per la vista Gestione Prenotazioni
+        const renderBookingsList = (bookings) => {
+            if (bookings.length === 0) {
+                bookingsList.innerHTML = `<p class="text-center text-gray-500">Nessuna prenotazione trovata.</p>`;
+                return;
+            }
+
+            bookingsList.innerHTML = '';
+            bookings.forEach(booking => {
+                const checkIn = new Date(booking.checkInDate);
+                const checkOut = new Date(booking.checkOutDate);
+                const diffTime = Math.abs(checkOut - checkIn);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const originalCost = (booking.dailyRate || 0) * diffDays;
+                const discountedCost = originalCost * (1 - (booking.discountRate || 0) / 100);
+                
+                // Calcola il costo totale includendo gli extra
+                const extraCost = (booking.extras || []).reduce((sum, extra) => sum + (extra.cost || 0), 0);
+                const finalCost = discountedCost + extraCost;
+                
+                const arrivalTime = booking.arrivalTime ? ` | Arrivo: ${booking.arrivalTime}` : '';
+                const intolerances = booking.intolerances ? `<p class="text-sm text-red-600">Intolleranze: ${booking.intolerances}</p>` : '';
+                
+                const paymentStatusText = {
+                    'pagato': `Pagato (${booking.paymentMethod === 'contanti' ? 'Contanti' : booking.paymentMethod === 'carta_di_credito' ? 'Carta di Credito' : 'Bonifico'})`,
+                    'non_pagato': 'Non Pagato',
+                    'pagato_parzialmente': `Pagato Parzialmente (€${(booking.partialPaymentAmount || 0).toFixed(2)})`
+                };
+
+                const invoiceText = booking.invoiceRequested ? 'Richiesta Fattura: Sì' : 'Richiesta Fattura: No';
+                const discountText = booking.discountRate ? `Sconto: ${booking.discountRate}%` : '';
+
+                let extrasList = '';
+                if (booking.extras && booking.extras.length > 0) {
+                    extrasList = booking.extras.map(extra => `<li>${extra.description}: €${extra.cost.toFixed(2)} (${extra.date})</li>`).join('');
+                }
+
+                const bookingEl = document.createElement('div');
+                bookingEl.className = 'flex flex-col md:flex-row items-start md:items-center justify-between p-4 border border-gray-200 rounded-lg shadow-sm';
+                bookingEl.innerHTML = `
+                    <div class="flex-grow mb-2 md:mb-0">
+                        <h3 class="text-lg font-bold text-gray-800">${booking.guestName}</h3>
+                        <p class="text-sm text-gray-600">Stanza: ${booking.roomName || 'N/D'}</p>
+                        <p class="text-sm text-gray-600">
+                            Check-in: ${booking.checkInDate} <br class="md:hidden">
+                            Check-out: ${booking.checkOutDate} ${arrivalTime}
+                        </p>
+                        <p class="text-sm text-gray-600">Ospiti: ${booking.numGuests}</p>
+                        ${intolerances}
+                        <p class="text-sm text-gray-600">Tariffa: €${(booking.dailyRate || 0).toFixed(2)} ${discountText ? `(${discountText})` : ''}</p>
+                        <p class="text-sm font-bold text-gray-800">Costo Totale: €${finalCost.toFixed(2)} (incluso €${extraCost.toFixed(2)} di extra)</p>
+                        <p class="text-sm text-gray-600">Stato Pagamento: ${paymentStatusText[booking.paymentStatus]}</p>
+                        <p class="text-sm text-gray-600">${invoiceText}</p>
+                        ${extrasList ? `<div class="mt-2"><p class="font-semibold text-sm">Extra:</p><ul class="list-disc list-inside">${extrasList}</ul></div>` : ''}
+                    </div>
+                    <div class="flex flex-wrap space-x-2 space-y-2 md:space-y-0 mt-4 md:mt-0 items-center justify-end">
+                        <button class="add-extra-btn bg-green-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-green-600 transition-colors" data-id="${booking.id}">Aggiungi Extra</button>
+                        <button class="summary-btn bg-indigo-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-indigo-600 transition-colors" data-id="${booking.id}">Conto</button>
+                        <button class="gemini-email-btn bg-pink-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-pink-600 transition-colors" data-id="${booking.id}">✨ Scrivi E-mail</button>
+                        <button class="edit-btn bg-yellow-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-yellow-600 transition-colors" data-id="${booking.id}">Modifica</button>
+                        <button class="delete-btn bg-red-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-red-700 transition-colors" data-id="${booking.id}">Elimina</button>
+                    </div>
+                `;
+                bookingsList.appendChild(bookingEl);
+            });
+            // Aggiungi listener per i pulsanti
+            document.querySelectorAll('.add-extra-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const bookingId = e.target.dataset.id;
+                    extraModal.dataset.bookingId = bookingId;
+                    extraModal.classList.remove('hidden');
+                });
+            });
+
+            document.querySelectorAll('.summary-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const bookingId = e.target.dataset.id;
+                    const booking = allBookings.find(b => b.id === bookingId);
+                    if (booking) {
+                        showSummaryModal(booking);
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.gemini-email-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const bookingId = e.target.dataset.id;
+                    const booking = allBookings.find(b => b.id === bookingId);
+                    if (booking) {
+                        generateEmail(booking);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.dataset.id;
+                    const booking = bookings.find(b => b.id === id);
+                    if (booking) {
+                        // Popola il modale di modifica
+                        editBookingId.value = booking.id;
+                        editGuestName.value = booking.guestName;
+                        editRoomName.value = booking.roomName;
+                        editNumGuests.value = booking.numGuests;
+                        editDailyRate.value = booking.dailyRate;
+                        editCheckinDate.value = booking.checkInDate;
+                        editCheckoutDate.value = booking.checkoutDate;
+                        editDiscountRate.value = booking.discountRate;
+                        editPaymentStatus.value = booking.paymentStatus;
+                        editIntolerances.value = booking.intolerances;
+                        editInvoiceRequested.checked = booking.invoiceRequested;
+                        
+                        // Mostra/nasconde i campi di pagamento
+                        if (booking.paymentStatus === 'pagato') {
+                            editPaymentMethodContainer.classList.remove('hidden');
+                            editPartialPaymentContainer.classList.add('hidden');
+                            editPaymentMethod.value = booking.paymentMethod;
+                        } else if (booking.paymentStatus === 'pagato_parzialmente') {
+                            editPaymentMethodContainer.classList.add('hidden');
+                            editPartialPaymentContainer.classList.remove('hidden');
+                            editPartialPayment.value = booking.partialPaymentAmount;
+                        } else {
+                            editPaymentMethodContainer.classList.add('hidden');
+                            editPartialPaymentContainer.classList.add('hidden');
+                        }
+
+                        // Apri il modale
+                        editModal.classList.remove('hidden');
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.dataset.id;
+                    const confirmDelete = await showModal('Elimina Prenotazione', 'Sei sicuro di voler eliminare questa prenotazione?', true);
+                    if (confirmDelete) {
+                        try {
+                            await deleteDoc(doc(db, `artifacts/${appId}/public/data/bookings`, id));
+                            showModal('Successo', 'Prenotazione eliminata con successo.');
+                        } catch (error) {
+                            console.error("Errore durante l'eliminazione della prenotazione:", error);
+                            showModal('Errore', 'Non è stato possibile eliminare la prenotazione. Controlla la console per i dettagli.');
+                        }
+                    }
+                });
+            });
+        };
+
+        // Gestione dell'invio del modulo di modifica
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = editBookingId.value;
+            const updatedBooking = {
+                guestName: editGuestName.value,
+                roomName: editRoomName.value,
+                numGuests: parseInt(editNumGuests.value, 10),
+                dailyRate: parseFloat(editDailyRate.value),
+                checkInDate: editCheckinDate.value,
+                checkOutDate: editCheckoutDate.value,
+                discountRate: parseFloat(editDiscountRate.value),
+                paymentStatus: editPaymentStatus.value,
+                intolerances: editIntolerances.value,
+                invoiceRequested: editInvoiceRequested.checked,
+                // Campi di pagamento
+                paymentMethod: editPaymentStatus.value === 'pagato' ? editPaymentMethod.value : null,
+                partialPaymentAmount: editPaymentStatus.value === 'pagato_parzialmente' ? parseFloat(editPartialPayment.value) : null,
+            };
+
+            try {
+                // Aggiorna la prenotazione nel database
+                await updateDoc(doc(db, `artifacts/${appId}/public/data/bookings`, id), updatedBooking);
+                editModal.classList.add('hidden');
+                showModal('Successo', 'Prenotazione modificata con successo.');
+            } catch (error) {
+                console.error("Errore durante la modifica della prenotazione:", error);
+                showModal('Errore', 'Non è stato possibile modificare la prenotazione. Controlla la console per i dettagli.');
+            }
+        });
+        
+        editPaymentStatus.addEventListener('change', (e) => {
+            if (e.target.value === 'pagato_parzialmente') {
+                editPartialPaymentContainer.classList.remove('hidden');
+                editPaymentMethodContainer.classList.add('hidden');
+            } else if (e.target.value === 'pagato') {
+                editPartialPaymentContainer.classList.add('hidden');
+                editPaymentMethodContainer.classList.remove('hidden');
+            }
+            else {
+                editPartialPaymentContainer.classList.add('hidden');
+                editPaymentMethodContainer.classList.add('hidden');
+            }
+        });
+        
+        cancelEditBtn.addEventListener('click', () => {
+            editModal.classList.add('hidden');
+        });
+
+        // Funzioni Gemini API
+        const callGeminiAPI = async (prompt, title) => {
+            geminiModal.classList.remove('hidden');
+            geminiTitle.textContent = title;
+            geminiContent.textContent = '';
+            geminiLoading.classList.remove('hidden');
+
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                tools: [{ "google_search": {} }],
+                systemInstruction: {
+                    parts: [{ text: "Sei un assistente AI utile per la gestione di un B&B. Le tue risposte devono essere concise, professionali e personalizzate in base ai dati forniti." }]
+                }
+            };
+
+            let response;
+            try {
+                response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || "Nessuna risposta generata.";
+                geminiContent.textContent = text;
+            } catch (error) {
+                console.error("Errore Gemini API:", error);
+                geminiContent.textContent = `Si è verificato un errore durante la generazione. Per favore, riprova. Errore: ${error.message}`;
+            } finally {
+                geminiLoading.classList.add('hidden');
+            }
+        };
+        
+        const generateEmail = (booking) => {
+            const checkIn = new Date(booking.checkInDate);
+            const checkOut = new Date(booking.checkOutDate);
+            const diffTime = Math.abs(checkOut - checkIn);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const originalCost = (booking.dailyRate || 0) * diffDays;
+            const discountAmount = originalCost * (booking.discountRate || 0) / 100;
+            const discountedCost = originalCost - discountAmount;
+            const extraCost = (booking.extras || []).reduce((sum, extra) => sum + (extra.cost || 0), 0);
+            const finalCost = discountedCost + extraCost;
+
+            const prompt = `Scrivi una bozza di e-mail di benvenuto concisa e professionale per ${booking.guestName}. L'email deve confermare la prenotazione per la stanza ${booking.roomName}, le date di check-in (${booking.checkInDate}) e check-out (${booking.checkOutDate}), il numero di ospiti (${booking.numGuests}) e il costo totale del soggiorno (${finalCost.toFixed(2)} euro). Aggiungi un breve messaggio di benvenuto e di augurio per un piacevole soggiorno.`;
+            callGeminiAPI(prompt, "Bozza E-mail di Benvenuto");
+        };
+
+        geminiCopyBtn.addEventListener('click', () => {
+            const textToCopy = geminiContent.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showModal('Copiato!', 'Il testo è stato copiato negli appunti.');
+            }).catch(err => {
+                console.error('Errore durante la copia del testo: ', err);
+                showModal('Errore', 'Non è stato possibile copiare il testo.');
+            });
+        });
+
+        geminiCloseBtn.addEventListener('click', () => {
+            geminiModal.classList.add('hidden');
+        });
+
+        // Gestione dell'invio del modulo extra
+        extraForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const bookingId = extraModal.dataset.bookingId;
+            const description = document.getElementById('extra-description').value;
+            const cost = parseFloat(document.getElementById('extra-cost').value);
+            const date = document.getElementById('extra-date').value;
+
+            if (isNaN(cost)) {
+                showModal('Errore', 'Inserisci un costo valido.');
+                return;
+            }
+
+            const bookingToUpdate = allBookings.find(b => b.id === bookingId);
+            const updatedExtras = [...(bookingToUpdate.extras || []), { description, cost, date }];
+
+            try {
+                await updateDoc(doc(db, `artifacts/${appId}/public/data/bookings`, bookingId), { extras: updatedExtras });
+                extraModal.classList.add('hidden');
+                extraForm.reset();
+                showModal('Extra Aggiunto', 'La consumazione è stata aggiunta con successo!');
+            } catch (error) {
+                console.error("Errore durante l'aggiunta dell'extra:", error);
+                showModal('Errore', 'Non è stato possibile aggiungere l\'extra. Controlla la console per i dettagli.');
+            }
+        });
+
+        cancelExtraBtn.addEventListener('click', () => {
+            extraModal.classList.add('hidden');
+            extraForm.reset();
+        });
+
+        // Gestione dei pulsanti del modale del riepilogo
+        copySummaryBtn.addEventListener('click', () => {
+            const textToCopy = summaryContentModal.textContent;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = textToCopy;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+            showModal('Copiato!', 'Il riepilogo del conto è stato copiato negli appunti.');
+            summaryModal.classList.add('hidden');
+        });
+
+        closeSummaryBtn.addEventListener('click', () => {
+            summaryModal.classList.add('hidden');
+        });
+
+        // Funzioni per la vista Calendario
+        const renderCalendar = () => {
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            currentMonthYearEl.textContent = `${monthNames[month]} ${year}`;
+
+            calendarGridEl.innerHTML = '';
+            
+            const firstDayOfMonth = new Date(year, month, 1);
+            const lastDayOfMonth = new Date(year, month + 1, 0);
+            
+            let startDay = firstDayOfMonth.getDay();
+            if (startDay === 0) startDay = 7;
+            for (let i = 1; i < startDay; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'day-cell';
+                calendarGridEl.appendChild(emptyCell);
+            }
+
+            for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'day-cell';
+                dayCell.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                
+                const dayNumber = document.createElement('span');
+                dayNumber.className = 'day-number';
+                dayNumber.textContent = i;
+                dayCell.appendChild(dayNumber);
+
+                const currentDate = new Date(year, month, i);
+                const bookingsForDay = allBookings.filter(booking => {
+                    const checkIn = new Date(booking.checkInDate + 'T00:00:00');
+                    const checkOut = new Date(booking.checkOutDate + 'T00:00:00');
+                    return currentDate >= checkIn && currentDate < checkOut;
+                });
+
+                // Aggiunge la classe "sold-out" se il numero di prenotazioni è pari al totale delle camere
+                if (bookingsForDay.length === totalRooms) {
+                    dayCell.classList.add('sold-out');
+                }
+
+                if (bookingsForDay.length > 0) {
+                    const detailsContainer = document.createElement('div');
+                    detailsContainer.className = 'booking-details';
+
+                    // Raggruppa le prenotazioni per stanza per sommare il numero di ospiti
+                    const roomGuestMap = {};
+                    bookingsForDay.forEach(booking => {
+                        if (roomGuestMap[booking.roomName]) {
+                            roomGuestMap[booking.roomName] += booking.numGuests;
+                        } else {
+                            roomGuestMap[booking.roomName] = booking.numGuests;
+                        }
+                    });
+
+                    // Visualizza ogni stanza e il numero totale di ospiti
+                    for (const room in roomGuestMap) {
+                        const bookingDetail = document.createElement('p');
+                        bookingDetail.textContent = `${room} (${roomGuestMap[room]})`;
+                        bookingDetail.className = 'font-semibold leading-tight';
+                        detailsContainer.appendChild(bookingDetail);
+                    }
+                    
+                    dayCell.appendChild(detailsContainer);
+                }
+
+                dayCell.addEventListener('click', (e) => {
+                    document.querySelectorAll('.day-cell').forEach(cell => cell.classList.remove('selected-day'));
+                    e.currentTarget.classList.add('selected-day');
+                    const date = e.currentTarget.dataset.date;
+                    displayBookingsForDay(date);
+                });
+
+                calendarGridEl.appendChild(dayCell);
+            }
+        };
+
+        const displayBookingsForDay = (dateString) => {
+            selectedDayBookingsEl.innerHTML = '';
+            const selectedDate = new Date(dateString + 'T00:00:00');
+            
+            const bookingsForDay = allBookings.filter(booking => {
+                const checkIn = new Date(booking.checkInDate + 'T00:00:00');
+                const checkOut = new Date(booking.checkOutDate + 'T00:00:00');
+                return selectedDate >= checkIn && selectedDate < checkOut;
+            });
+            
+            if (bookingsForDay.length === 0) {
+                selectedDayBookingsEl.innerHTML = `<p class="text-center text-gray-500">Nessuna prenotazione per questo giorno.</p>`;
+                return;
+            }
+
+            bookingsForDay.forEach(booking => {
+                const bookingEl = document.createElement('div');
+                bookingEl.className = 'p-4 border border-gray-200 rounded-lg shadow-sm';
+                bookingEl.innerHTML = `
+                    <h4 class="text-md font-bold text-gray-800">${booking.guestName}</h4>
+                    <p class="text-sm text-gray-600">Stanza: ${booking.roomName}</p>
+                    <p class="text-sm text-gray-600">Check-in: ${booking.checkInDate} | Check-out: ${booking.checkOutDate}</p>
+                `;
+                selectedDayBookingsEl.appendChild(bookingEl);
+            });
+        };
+
+        prevMonthBtn.addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            renderCalendar();
+        });
+
+        nextMonthBtn.addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            renderCalendar();
+        });
+
+        // Funzioni per il Riepilogo Dati
+        const updateFilterInputs = (filter) => {
+            filterInputsContainer.innerHTML = '';
+            const now = new Date();
+            if (filter === 'year') {
+                filterInputsContainer.innerHTML = `
+                    <label for="filter-year" class="text-sm font-medium text-gray-600">Anno:</label>
+                    <input type="number" id="filter-year" value="${now.getFullYear()}" min="2020" max="2100" class="p-2 border border-gray-300 rounded-lg">
+                `;
+            } else if (filter === 'month') {
+                filterInputsContainer.innerHTML = `
+                    <label for="filter-month" class="text-sm font-medium text-gray-600">Mese:</label>
+                    <input type="month" id="filter-month" value="${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}" class="p-2 border border-gray-300 rounded-lg">
+                `;
+            } else if (filter === 'week') {
+                filterInputsContainer.innerHTML = `
+                    <label for="filter-week" class="text-sm font-medium text-gray-600">Settimana:</label>
+                    <input type="week" id="filter-week" value="${now.getFullYear()}-W${String(now.getWeek()).padStart(2, '0')}" class="p-2 border border-gray-300 rounded-lg">
+                `;
+            } else if (filter === 'day') {
+                filterInputsContainer.innerHTML = `
+                    <label for="filter-day" class="text-sm font-medium text-gray-600">Giorno:</label>
+                    <input type="date" id="filter-day" value="${now.toISOString().split('T')[0]}" class="p-2 border border-gray-300 rounded-lg">
+                `;
+            }
+            // Aggiungi un listener per il cambiamento dell'input
+            const inputElement = filterInputsContainer.querySelector('input');
+            if (inputElement) {
+                inputElement.addEventListener('change', () => calculateAndRenderSummary());
+            }
+        };
+
+        const calculateAndRenderSummary = () => {
+            const filterType = summaryFilterSelect.value;
+            let filterDate = new Date();
+            let filterYear = filterDate.getFullYear();
+            let filterMonth = filterDate.getMonth();
+            let filterWeek = filterDate.getWeek();
+
+            const inputElement = filterInputsContainer.querySelector('input');
+            if (inputElement) {
+                const inputValue = inputElement.value;
+                if (filterType === 'year') {
+                    filterYear = parseInt(inputValue, 10);
+                } else if (filterType === 'month') {
+                    const [year, month] = inputValue.split('-').map(Number);
+                    filterYear = year;
+                    filterMonth = month - 1;
+                } else if (filterType === 'week') {
+                    const [year, week] = inputValue.split('-W').map(Number);
+                    filterYear = year;
+                    filterWeek = week;
+                } else if (filterType === 'day') {
+                    filterDate = new Date(inputValue + 'T00:00:00');
+                }
+            }
+
+            if (!allBookings || allBookings.length === 0) {
+                summaryDataContainer.innerHTML = `<p class="text-center text-gray-500 col-span-full">Nessun dato disponibile per il riepilogo.</p>`;
+                summaryExtrasContainer.innerHTML = `<p class="text-center text-gray-500 col-span-full">Nessun dato extra disponibile.</p>`;
+                return;
+            }
+            
+            const filteredBookings = allBookings.filter(booking => {
+                const checkIn = new Date(booking.checkInDate + 'T00:00:00');
+                const checkOut = new Date(booking.checkOutDate + 'T00:00:00');
+                
+                let relevant = false;
+                for (let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
+                    if (filterType === 'year' && d.getFullYear() === filterYear) {
+                        relevant = true;
+                        break;
+                    }
+                    if (filterType === 'month' && d.getFullYear() === filterYear && d.getMonth() === filterMonth) {
+                        relevant = true;
+                        break;
+                    }
+                    if (filterType === 'week' && d.getFullYear() === filterYear && d.getWeek() === filterWeek) {
+                        relevant = true;
+                        break;
+                    }
+                    if (filterType === 'day' && d.getFullYear() === filterDate.getFullYear() && d.getMonth() === filterDate.getMonth() && d.getDate() === filterDate.getDate()) {
+                        relevant = true;
+                        break;
+                    }
+                }
+                return relevant;
+            });
+
+            // Calcoli e raggruppamento dei dati
+            let totalGuests = 0;
+            let totalRoomsSold = 0;
+            let totalRevenue = 0;
+            let totalInvoices = 0;
+            let totalCash = 0;
+            let totalCreditCard = 0;
+            let totalBankTransfer = 0;
+            let totalExtraRevenue = 0;
+            const roomsSoldByRoom = {};
+            const revenueByRoom = {};
+            const extrasByItem = {};
+
+            filteredBookings.forEach(booking => {
+                const checkIn = new Date(booking.checkInDate + 'T00:00:00');
+                const checkOut = new Date(booking.checkOutDate + 'T00:00:00');
+                const diffTime = Math.abs(checkOut - checkIn);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                totalGuests += booking.numGuests;
+                totalRoomsSold += diffDays;
+
+                const discountedRate = (booking.dailyRate || 0) * (1 - (booking.discountRate || 0) / 100);
+                const totalStayCost = discountedRate * diffDays;
+                
+                const extraCost = (booking.extras || []).reduce((sum, extra) => {
+                    const extraDate = new Date(extra.date + 'T00:00:00');
+                    if (filterType === 'year' && extraDate.getFullYear() === filterYear) {
+                        if (!extrasByItem[extra.description]) extrasByItem[extra.description] = 0;
+                        extrasByItem[extra.description] += extra.cost;
+                        return sum + extra.cost;
+                    }
+                    if (filterType === 'month' && extraDate.getFullYear() === filterYear && extraDate.getMonth() === filterMonth) {
+                        if (!extrasByItem[extra.description]) extrasByItem[extra.description] = 0;
+                        extrasByItem[extra.description] += extra.cost;
+                        return sum + extra.cost;
+                    }
+                    if (filterType === 'week' && extraDate.getFullYear() === filterYear && extraDate.getWeek() === filterWeek) {
+                        if (!extrasByItem[extra.description]) extrasByItem[extra.description] = 0;
+                        extrasByItem[extra.description] += extra.cost;
+                        return sum + extra.cost;
+                    }
+                    if (filterType === 'day' && extraDate.getFullYear() === filterDate.getFullYear() && extraDate.getMonth() === filterDate.getMonth() && extraDate.getDate() === filterDate.getDate()) {
+                        if (!extrasByItem[extra.description]) extrasByItem[extra.description] = 0;
+                        extrasByItem[extra.description] += extra.cost;
+                        return sum + extra.cost;
+                    }
+                    return sum;
+                }, 0);
+                totalExtraRevenue += extraCost;
+                
+                const totalCost = totalStayCost + extraCost;
+                totalRevenue += totalCost;
+
+                if (booking.invoiceRequested) {
+                    totalInvoices++;
+                }
+
+                if (booking.paymentStatus === 'pagato') {
+                    if (booking.paymentMethod === 'contanti') {
+                        totalCash += totalCost;
+                    } else if (booking.paymentMethod === 'carta_di_credito') {
+                        totalCreditCard += totalCost;
+                    } else if (booking.paymentMethod === 'bonifico') {
+                        totalBankTransfer += totalCost;
+                    }
+                } else if (booking.paymentStatus === 'pagato_parzialmente') {
+                    if (booking.paymentMethod === 'contanti') {
+                        totalCash += (booking.partialPaymentAmount || 0);
+                    } else if (booking.paymentMethod === 'carta_di_credito') {
+                        totalCreditCard += (booking.partialPaymentAmount || 0);
+                    } else if (booking.paymentMethod === 'bonifico') {
+                        totalBankCard += (booking.partialPaymentAmount || 0);
+                    }
+                }
+
+                // Conteggio per singola camera
+                if (!roomsSoldByRoom[booking.roomName]) {
+                    roomsSoldByRoom[booking.roomName] = 0;
+                }
+                roomsSoldByRoom[booking.roomName] += diffDays;
+                if (!revenueByRoom[booking.roomName]) {
+                    revenueByRoom[booking.roomName] = 0;
+                }
+                revenueByRoom[booking.roomName] += totalCost;
+            });
+            
+            let html = ``;
+            const formatData = (label, value, isCurrency = false) => `
+                <div class="bg-gray-100 p-4 rounded-lg shadow-sm">
+                    <h4 class="text-lg font-semibold text-gray-700">${label}</h4>
+                    <p class="text-2xl font-bold text-blue-600">${isCurrency ? '€' : ''}${value.toFixed(isCurrency ? 2 : 0)}</p>
+                </div>
+            `;
+            
+            html += formatData('Ospiti totali', totalGuests);
+            html += formatData('Camere vendute', totalRoomsSold);
+            html += formatData('Incasso generale', totalRevenue, true);
+            html += formatData('Incasso contanti', totalCash, true);
+            html += formatData('Incasso carta', totalCreditCard, true);
+            html += formatData('Incasso bonifico', totalBankTransfer, true);
+            html += formatData('Fatture richieste', totalInvoices);
+            
+            html += `<h3 class="text-xl font-semibold text-gray-700 col-span-full mt-4">Camere Vendute per Stanza</h3>`;
+            for (const room in roomsSoldByRoom) {
+                html += formatData(`${room}`, roomsSoldByRoom[room]);
+            }
+            
+            html += `<h3 class="text-xl font-semibold text-gray-700 col-span-full mt-4">Incasso per Stanza</h3>`;
+            for (const room in revenueByRoom) {
+                html += formatData(`${room}`, revenueByRoom[room], true);
+            }
+
+            summaryDataContainer.innerHTML = html;
+
+            let extrasHtml = `<p class="text-2xl font-bold text-blue-600 mb-4">Incasso Extra Totale: €${totalExtraRevenue.toFixed(2)}</p>`;
+            
+            if (Object.keys(extrasByItem).length > 0) {
+                extrasHtml += `<h4 class="text-lg font-semibold text-gray-700 mb-2">Dettaglio per Consumazione</h4>`;
+                for (const item in extrasByItem) {
+                    extrasHtml += `<div class="bg-gray-100 p-3 rounded-lg shadow-sm mb-2">
+                        <p class="font-semibold">${item}: <span class="text-green-600">€${extrasByItem[item].toFixed(2)}</span></p>
+                    </div>`;
+                }
+            } else {
+                extrasHtml += `<p class="text-gray-500">Nessuna consumazione extra nel periodo selezionato.</p>`;
+            }
+            summaryExtrasContainer.innerHTML = extrasHtml;
+        };
+        
+        // Aggiunge un listener all'input dei filtri per aggiornare il riepilogo
+        summaryFilterSelect.addEventListener('change', (e) => {
+            updateFilterInputs(e.target.value);
+            calculateAndRenderSummary();
+        });
+
+        // Autenticazione e ascolto dei cambiamenti
+        onAuthStateChanged(auth, async (user) => {
+            try {
+                if (user) {
+                    userId = user.uid;
+                    userIdSpan.textContent = userId;
+
+                    // Ascolto in tempo reale dei cambiamenti nella collezione 'bookings'
+                    const bookingsRef = collection(db, `artifacts/${appId}/public/data/bookings`);
+                    const q = query(bookingsRef);
+                    onSnapshot(q, (querySnapshot) => {
+                        allBookings = [];
+                        querySnapshot.forEach((doc) => {
+                            allBookings.push({ id: doc.id, ...doc.data() });
+                        });
+                        // Ordina per data di check-in (il più vecchio per primo)
+                        allBookings.sort((a, b) => new Date(a.checkInDate) - new Date(b.checkInDate));
+                        
+                        renderBookingsList(allBookings);
+                        renderCalendar();
+                        calculateAndRenderSummary();
+                    }, (error) => {
+                        console.error("Errore onSnapshot:", error);
+                        showModal('Errore di Connessione', 'Non è stato possibile connettersi al database in tempo reale.');
+                    });
+
+                } else {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                }
+            } catch (error) {
+                console.error("Errore di autenticazione:", error);
+                showModal('Errore di Autenticazione', 'Non è stato possibile autenticare l\'utente. Ricarica la pagina.');
+            }
+        });
+
+        // Gestione dell'invio del modulo
+        bookingForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const guestName = document.getElementById('guest-name').value;
+            const roomName = document.getElementById('room-name').value;
+            const numGuests = parseInt(document.getElementById('num-guests').value, 10);
+            const dailyRate = parseFloat(document.getElementById('daily-rate').value);
+            const discountRate = parseFloat(document.getElementById('discount-rate').value);
+            const checkInDate = document.getElementById('checkin-date').value;
+            const checkOutDate = document.getElementById('checkout-date').value;
+            const arrivalTime = document.getElementById('arrival-time').value;
+            const intolerances = document.getElementById('intolerances').value;
+            const paymentStatus = document.getElementById('payment-status').value;
+            const paymentMethod = (paymentStatus === 'pagato') ? document.getElementById('payment-method').value : null;
+            const partialPaymentAmount = (paymentStatus === 'pagato_parzialmente') ? parseFloat(document.getElementById('partial-payment').value) : null;
+            const invoiceRequested = document.getElementById('invoice-requested').checked;
+
+
+            // Semplice validazione
+            if (new Date(checkOutDate) <= new Date(checkInDate)) {
+                showModal('Errore di Data', 'La data di check-out deve essere successiva alla data di check-in.');
+                return;
+            }
+
+            // Aggiungo il controllo di disponibilità
+            const checkIn = new Date(checkInDate + 'T00:00:00');
+            const checkOut = new Date(checkOutDate + 'T00:00:00');
+            
+            let isRoomOccupied = allBookings.some(booking => {
+                const existingCheckIn = new Date(booking.checkInDate + 'T00:00:00');
+                const existingCheckOut = new Date(booking.checkOutDate + 'T00:00:00');
+                
+                const isOverlapping = (checkIn < existingCheckOut && existingCheckIn < checkOut);
+
+                return isOverlapping && booking.roomName === roomName;
+            });
+
+            if (isRoomOccupied) {
+                showModal('Errore', `La stanza ${roomName} è già prenotata per questo periodo.`);
+                return;
+            }
+
+            const newBooking = {
+                guestName,
+                roomName,
+                numGuests,
+                dailyRate,
+                discountRate,
+                checkInDate,
+                checkOutDate,
+                arrivalTime,
+                intolerances,
+                paymentStatus,
+                paymentMethod,
+                partialPaymentAmount,
+                invoiceRequested,
+                extras: [],
+                createdAt: new Date()
+            };
+
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/bookings`), newBooking);
+                showModal('Prenotazione Aggiunta', 'La prenotazione è stata aggiunta con successo!');
+                bookingForm.reset();
+            } catch (error) {
+                console.error("Errore durante l'aggiunta della prenotazione:", error);
+                showModal('Errore', 'Non è stato possibile aggiungere la prenotazione. Controlla la console per i dettagli.');
+            }
+        });
+        
+        // Gestione della visibilità delle viste
+        showManagerBtn.addEventListener('click', () => {
+            managerView.classList.remove('hidden');
+            calendarView.classList.add('hidden');
+            summaryView.classList.add('hidden');
+            showManagerBtn.classList.replace('bg-gray-300', 'bg-blue-600');
+            showManagerBtn.classList.replace('text-gray-800', 'text-white');
+            showCalendarBtn.classList.replace('bg-blue-600', 'bg-gray-300');
+            showCalendarBtn.classList.replace('text-white', 'text-gray-800');
+            showSummaryBtn.classList.replace('bg-blue-600', 'bg-gray-300');
+            showSummaryBtn.classList.replace('text-white', 'text-gray-800');
+        });
+
+        showCalendarBtn.addEventListener('click', () => {
+            managerView.classList.add('hidden');
+            calendarView.classList.remove('hidden');
+            summaryView.classList.add('hidden');
+            showCalendarBtn.classList.replace('bg-gray-300', 'bg-blue-600');
+            showCalendarBtn.classList.replace('text-gray-800', 'text-white');
+            showManagerBtn.classList.replace('bg-blue-600', 'bg-gray-300');
+            showManagerBtn.classList.replace('text-white', 'text-gray-800');
+            showSummaryBtn.classList.replace('bg-blue-600', 'bg-gray-300');
+            showSummaryBtn.classList.replace('text-white', 'text-gray-800');
+            renderCalendar();
+        });
+        
+        showSummaryBtn.addEventListener('click', () => {
+            managerView.classList.add('hidden');
+            calendarView.classList.add('hidden');
+            summaryView.classList.remove('hidden');
+            showSummaryBtn.classList.replace('bg-gray-300', 'bg-blue-600');
+            showSummaryBtn.classList.replace('text-gray-800', 'text-white');
+            showManagerBtn.classList.replace('bg-blue-600', 'bg-gray-300');
+            showManagerBtn.classList.replace('text-white', 'text-gray-800');
+            showCalendarBtn.classList.replace('bg-blue-600', 'bg-gray-300');
+            showCalendarBtn.classList.replace('text-white', 'text-gray-800');
+            updateFilterInputs(summaryFilterSelect.value);
+            calculateAndRenderSummary();
+        });
+        
+        // Funzione per calcolare la settimana dell'anno
+        Date.prototype.getWeek = function() {
+            const date = new Date(this.getTime());
+            date.setHours(0, 0, 0, 0);
+            date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+            const week1 = new Date(date.getFullYear(), 0, 4);
+            return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+        };
+        
+        // Inizializza i campi di input del filtro al caricamento
+        window.addEventListener('DOMContentLoaded', () => {
+            updateFilterInputs(summaryFilterSelect.value);
+        });
+    </script>
+</body>
+</html>
